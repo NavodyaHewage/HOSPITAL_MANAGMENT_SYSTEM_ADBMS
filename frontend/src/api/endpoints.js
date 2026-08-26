@@ -1,0 +1,15 @@
+export const ENDPOINTS = {
+  auth: { login: '/auth/login', refresh: '/auth/refresh', me: '/auth/me' },
+  patients: '/patients',
+  doctors: '/doctors',
+  departments: '/departments',
+  appointments: '/appointments',
+  consultations: '/consultations',
+  prescriptions: '/prescriptions',
+  laboratory: { tests: '/lab/tests', orders: '/lab/orders', results: '/lab/results' },
+  pharmacy: { medicines: '/pharmacy/medicines', batches: '/pharmacy/batches', dispense: '/pharmacy/dispense' },
+  billing: { bills: '/billing/bills', payments: '/billing/payments', insurance: '/billing/insurance' },
+  users: '/users',
+  audit: '/audit',
+  reports: '/reports',
+};
