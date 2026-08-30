@@ -1,38 +1,59 @@
-# Frontend — React + Vite
+# Frontend
 
-## Layout
+This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.11.
 
-```
-src/
-├── main.jsx              entry: QueryClient, Router, AuthProvider
-├── app/App.jsx
-├── api/                  axiosClient (JWT + error interceptors), endpoints
-├── routes/               AppRoutes, ProtectedRoute (login + permission gate)
-├── layouts/              MainLayout (sidebar + topbar shell)
-├── context/              AuthContext
-├── components/           ui/ common/ tables/ forms/ charts/
-├── features/<feature>/
-│   ├── api/              endpoint calls for that feature
-│   ├── hooks/            TanStack Query hooks
-│   ├── components/       feature-local components
-│   └── pages/            routed pages
-├── hooks/  store/  services/  utils/  constants/  types/
-└── assets/               images, styles
+## Development server
+
+To start a local development server, run:
+
+```bash
+ng serve
 ```
 
-Features: `auth`, `dashboard`, `patients`, `doctors`, `departments`,
-`appointments`, `consultations`, `prescriptions`, `laboratory`, `pharmacy`,
-`billing`, `users`, `audit`, `reports`.
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
-`features/patients` is wired end to end (api, hook, page) as the reference
-pattern.
+## Code scaffolding
 
-## Conventions
+Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
 
-- Server state lives in TanStack Query, not in context or Redux. Context holds
-  only the authenticated user.
-- Every request goes through `api/axiosClient`; it attaches the JWT and unwraps
-  the `ApiResponse` envelope. A 409 carries a database rule message, so show it
-  to the user as-is.
-- Navigation and buttons are gated with `hasPermission(...)` using the same
-  permission names the backend checks.
+```bash
+ng generate component component-name
+```
+
+For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+
+```bash
+ng generate --help
+```
+
+## Building
+
+To build the project run:
+
+```bash
+ng build
+```
+
+This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+
+## Running unit tests
+
+To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+
+```bash
+ng test
+```
+
+## Running end-to-end tests
+
+For end-to-end (e2e) testing, run:
+
+```bash
+ng e2e
+```
+
+Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+
+## Additional Resources
+
+For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
