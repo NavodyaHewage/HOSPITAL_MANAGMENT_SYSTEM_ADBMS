@@ -40,7 +40,8 @@ public class Patient {
     private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender", nullable = false)
+    @Column(name = "gender", nullable = false,
+            columnDefinition = "enum('Male','Female','Other')")
     private Gender gender;
 
     @Column(name = "blood_group", length = 5)

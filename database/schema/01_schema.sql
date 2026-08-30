@@ -92,6 +92,7 @@ CREATE TABLE users (
     phone           VARCHAR(20),
     is_active       BOOLEAN       NOT NULL DEFAULT TRUE,
     last_login      DATETIME      NULL,
+    last_logout     DATETIME      NULL,
     created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                   ON UPDATE CURRENT_TIMESTAMP,

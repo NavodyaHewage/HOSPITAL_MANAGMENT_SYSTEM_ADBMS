@@ -276,10 +276,19 @@ START TRANSACTION;
      WHERE bill_id = @bill
      FOR UPDATE;
 
-    -- Step 2: insert the payment fact (half the bill)
-    INSERT INTO payments (bill_id, amount, payment_method, reference_number, received_by)
-    SELECT @bill, ROUND(total_amount / 2, 2), 'Card', 'VIVA-PAY-1', 'Cashier-1'
+    -- Step 2: insert the payment fact (half the bill).
+    -- IMPORTANT: this must NOT be written as
+    --     INSERT INTO payments ... SELECT ... FROM bills ...
+    -- MySQL raises ERROR 1442 ("Can't update table 'bills' in stored
+    -- function/trigger because it is already used by statement which invoked
+    -- this ... trigger"): the AFTER INSERT trigger trg_payments_ai_apply
+    -- UPDATEs bills, but bills is already open for reading in the same
+    -- statement. Read the amount into a variable FIRST, then INSERT ... VALUES.
+    SELECT ROUND(total_amount / 2, 2) INTO @half
       FROM bills WHERE bill_id = @bill;
+
+    INSERT INTO payments (bill_id, amount, payment_method, reference_number, received_by)
+    VALUES (@bill, @half, 'Card', 'VIVA-PAY-1', 'Cashier-1');
 
     -- Step 3: verify the invariant BEFORE committing
     SELECT bill_id, total_amount, paid_amount, balance_amount, status,

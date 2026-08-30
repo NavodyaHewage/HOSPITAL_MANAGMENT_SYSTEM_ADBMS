@@ -12,6 +12,20 @@
 --  IMPORTANT: this file runs BEFORE triggers are created (file 05). That is
 --  deliberate - loading 200k rows through row-level triggers is slow and would
 --  pollute audit_logs. All derived columns are computed correctly here by hand.
+--
+--  AND IT IS NOT MERELY AN OPTIMISATION - THE ORDER IS MANDATORY.
+--  Several bulk loads here are of the form
+--      INSERT INTO stock_transactions ... SELECT ... FROM inventory_batches
+--      INSERT INTO lab_results        ... SELECT ... FROM lab_orders
+--      INSERT INTO payments           ... SELECT ... FROM bills
+--  Each of those target tables has an AFTER INSERT trigger that UPDATEs the very
+--  table being read. Once the triggers exist, MySQL rejects the whole statement:
+--      ERROR 1442 (HY000): Can't update table 'bills' in stored function/trigger
+--      because it is already used by statement which invoked this ... trigger
+--  So: NEVER re-run this file against a database that already has file 05
+--  loaded. Re-run the master build (which drops and recreates the schema)
+--  instead. Interactive code must read the value into a variable first and then
+--  INSERT ... VALUES - see the transaction demos in file 07 for that pattern.
 -- ============================================================================
 
 USE hospital_management;

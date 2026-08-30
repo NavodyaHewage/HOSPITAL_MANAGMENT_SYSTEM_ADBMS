@@ -153,7 +153,22 @@ EXPLAIN SELECT doctor_id, appointment_date, appointment_time  -- all in the inde
 -- ============================================================================
 
 -- INDEX 1: idx_appointments_doctor_datetime
-ALTER TABLE appointments DROP INDEX idx_appointments_doctor_datetime;
+--
+-- WHY THE PLAIN "DROP INDEX" FAILS HERE (good viva point):
+--   ALTER TABLE appointments DROP INDEX idx_appointments_doctor_datetime;
+--   -> ERROR 1553 (HY000): Cannot drop index ...: needed in a foreign key constraint
+--
+-- When CREATE TABLE declared fk_appt_doctor, InnoDB auto-created a hidden index
+-- on (doctor_id) to enforce it. Creating idx_appointments_doctor_datetime, whose
+-- LEFTMOST column is doctor_id, made that hidden index redundant, so InnoDB
+-- dropped it and let the FK ride on our composite index instead. (Run
+-- SHOW INDEX FROM appointments; there is no fk_appt_doctor index any more.)
+-- Every FK must keep an index, so the composite can no longer be dropped alone.
+--
+-- To run an honest BEFORE/AFTER, drop the constraint first and put it back after.
+ALTER TABLE appointments DROP FOREIGN KEY fk_appt_doctor;
+ALTER TABLE appointments DROP INDEX  idx_appointments_doctor_datetime;
+
 EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
   FROM appointments
  WHERE doctor_id = 7
@@ -162,6 +177,13 @@ EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
 
 CREATE INDEX idx_appointments_doctor_datetime
     ON appointments (doctor_id, appointment_date, appointment_time);
+
+-- Re-add the FK only AFTER the composite index exists, so InnoDB reuses it
+-- instead of creating a second, redundant index on (doctor_id).
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appt_doctor FOREIGN KEY (doctor_id)
+        REFERENCES doctors(doctor_id) ON DELETE RESTRICT;
+
 EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
   FROM appointments
  WHERE doctor_id = 7
@@ -259,23 +281,49 @@ EXPLAIN SELECT user_id, username FROM users
 -- ---------------------------------------------------------------------------
 -- (1) A FUNCTION ON AN INDEXED COLUMN KILLS THE INDEX  ("non-SARGable")
 -- ---------------------------------------------------------------------------
--- SLOW: YEAR() must be evaluated for every row, so the index cannot be used.
+-- Both queries below also pin doctor_id. That is deliberate: our only index on
+-- appointment_date is the COMPOSITE (doctor_id, appointment_date,
+-- appointment_time), and a composite B+Tree is only seekable from its LEFTMOST
+-- column. Filtering on appointment_date alone can never produce a range scan
+-- here no matter how it is written, so a bare-date before/after would show no
+-- difference and would prove nothing. Fix the leftmost column, then vary only
+-- the thing under test.
+--
+-- SLOW: YEAR() wraps the indexed column, so appointment_date cannot be used for
+--       seeking. The index is entered on doctor_id only and every one of that
+--       doctor's rows is then evaluated.  ->  type=ref, key_len=4
 EXPLAIN SELECT COUNT(*) FROM appointments
- WHERE YEAR(appointment_date) = YEAR(CURDATE());
+ WHERE doctor_id = 7
+   AND YEAR(appointment_date) = YEAR(CURDATE());
 
--- FAST: rewrite as a RANGE on the raw column. Same answer, index usable.
+-- FAST: same answer, rewritten as a RANGE on the bare column, so the second
+--       index column is usable too.                ->  type=range, key_len=7
 EXPLAIN SELECT COUNT(*) FROM appointments
- WHERE appointment_date >= MAKEDATE(YEAR(CURDATE()), 1)
+ WHERE doctor_id = 7
+   AND appointment_date >= MAKEDATE(YEAR(CURDATE()), 1)
    AND appointment_date <  MAKEDATE(YEAR(CURDATE()) + 1, 1);
 -- RULE: keep the indexed column BARE on the left-hand side of the comparison.
+-- Watch key_len grow from 4 to 7: that is the optimizer telling you exactly how
+-- many columns of the composite index it managed to use.
 
 -- ---------------------------------------------------------------------------
 -- (2) LEADING-WILDCARD LIKE
 -- ---------------------------------------------------------------------------
 CREATE INDEX idx_patients_phone ON patients (phone);   -- the demo needs one
-EXPLAIN SELECT patient_id FROM patients WHERE phone LIKE '%1234';   -- type = ALL
-EXPLAIN SELECT patient_id FROM patients WHERE phone LIKE '0703%';   -- type = range
+
+-- NOTE: both queries select first_name, which is NOT in idx_patients_phone.
+-- With "SELECT patient_id" alone the index covers the query, so MySQL happily
+-- scans the whole INDEX (type=index) in both cases and the contrast disappears.
+-- Selecting an uncovered column forces the real choice: seek, or scan the table.
+EXPLAIN SELECT patient_id, first_name FROM patients
+ WHERE phone LIKE '%1234';       -- type = ALL    : full table scan
+
+EXPLAIN SELECT patient_id, first_name FROM patients
+ WHERE phone LIKE '07030000%';   -- type = range  : ~99 rows
 -- A B+Tree is ordered by PREFIX. '%x' has no prefix to seek on.
+-- The prefix also has to be SELECTIVE: every seeded phone starts '07030',
+-- so LIKE '0703%' matches all 5,000 patients and the optimizer correctly
+-- ignores the index. "Indexed" and "worth using" are not the same thing.
 
 -- ---------------------------------------------------------------------------
 -- (3) CORRELATED SUBQUERY -> JOIN  (Member 2's headline example)

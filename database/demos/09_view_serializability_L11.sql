@@ -414,17 +414,40 @@ ROLLBACK;
 
 -- Through the procedure, the same race gives a clean business error:
 CALL sp_book_or_reschedule_appointment(@ap, 302, 11, @slot_date, '10:00:00', 'via SP');
--- EXPECTED: ERROR 1644 'SLOT ALREADY BOOKED: another user took this doctor/date/time'
+-- EXPECTED: ERROR 1644 'Doctor is not available at that date/time'
+--   Read the procedure to see why THAT message and not the duplicate-key one:
+--   the three defence layers fire in order, and layer 2 (the logical check via
+--   fn_check_doctor_availability) catches this first because the winning row is
+--   already COMMITTED by the time we look. The layer-3 message
+--   'SLOT ALREADY BOOKED: another user took this doctor/date/time' appears only
+--   in the true race - when the other session commits in the window between our
+--   check and our INSERT. That path is the one you cannot demonstrate from a
+--   single tab, and it is exactly why layer 3 has to exist: layer 2 alone is a
+--   check-then-act, and check-then-act is never atomic.
 
 -- ============================================================================
 --  DEMO 6 — CONCURRENT DISPENSING   *** MEMBER 4's MAIN L12-L13 SCENARIO ***
 --  Two pharmacists dispense from the same batch at the same moment.
 -- ============================================================================
--- Prepare a batch holding exactly 100 units
-SELECT batch_id INTO @bt FROM inventory_batches
- WHERE expiry_date >= CURDATE() + INTERVAL 60 DAY ORDER BY batch_id LIMIT 1;
-UPDATE inventory_batches SET quantity_available = 100 WHERE batch_id = @bt;
+-- Prepare a batch holding exactly 100 units.
+-- Do it THROUGH THE LEDGER, not with "UPDATE ... SET quantity_available = 100".
+-- quantity_available is owned by trg_stock_tx_ai_apply (the single-owner rule);
+-- writing it directly leaves the batch disagreeing with its own
+-- stock_transactions history and breaks consistency proof 6.4(c).
+SELECT batch_id, medicine_id, quantity_available
+  INTO @bt, @med, @qty_now
+FROM inventory_batches
+ WHERE expiry_date >= CURDATE() + INTERVAL 60 DAY
+   AND quantity_available > 100
+ ORDER BY batch_id LIMIT 1;
+
+INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type,
+                                quantity, performed_by, notes)
+VALUES (@bt, @med, 'Adjustment', @qty_now - 100, 'demo_setup',
+        'Trim batch to 100 units for the concurrency demo');
+
 SELECT @bt AS demo_batch, quantity_available FROM inventory_batches WHERE batch_id = @bt;
+-- EXPECTED: 100
 
 -- ---------- 6a : WITHOUT LOCKING (the race) ---------------------------------
 -- >>> SESSION A <<<        >>> SESSION B <<<
@@ -456,17 +479,20 @@ SELECT quantity_available INTO @qb
 
 -- >>> SESSION A <<<
 -- [A2]
+-- Same ERROR 1442 trap as the payment demo: trg_stock_tx_ai_apply UPDATEs
+-- inventory_batches, so the INSERT may not also SELECT from inventory_batches.
+-- Resolve medicine_id into a variable first, then INSERT ... VALUES.
+SELECT medicine_id INTO @med FROM inventory_batches WHERE batch_id = @bt;
+
 INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type, quantity, performed_by)
-SELECT @bt, medicine_id, 'Dispense', 80, 'Pharmacist-A'
-  FROM inventory_batches WHERE batch_id = @bt;
+VALUES (@bt, @med, 'Dispense', 80, 'Pharmacist-A');
 COMMIT;
 
 -- >>> SESSION B <<<
 -- [B2]  B's SELECT returns 20, not 100. B now dispenses only what exists.
 SELECT @qb AS B_sees_after_unblocking;      -- 20
 INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type, quantity, performed_by)
-SELECT @bt, medicine_id, 'Dispense', 80, 'Pharmacist-B'
-  FROM inventory_batches WHERE batch_id = @bt;
+VALUES (@bt, @med, 'Dispense', 80, 'Pharmacist-B');
 -- EXPECTED: ERROR 1644 'STOCK CANNOT GO NEGATIVE: dispense rejected'
 ROLLBACK;
 
@@ -532,7 +558,15 @@ UPDATE bills SET discount = discount WHERE bill_id = @d1;   -- waits for A -> CY
 -- Inspect it:
 SHOW ENGINE INNODB STATUS;          -- read the "LATEST DETECTED DEADLOCK" section
 SELECT * FROM performance_schema.data_lock_waits;
-SHOW STATUS LIKE 'Innodb_deadlocks';
+-- NOTE: 'Innodb_deadlocks' is a Percona Server status variable and does NOT
+-- exist in MySQL Community (SHOW STATUS just returns an empty set - which looks
+-- like "zero deadlocks" and is really "no such counter"). The portable
+-- equivalent in MySQL 8 is the INNODB_METRICS counter, which must be switched
+-- on first because it is disabled by default:
+SET GLOBAL innodb_monitor_enable = 'lock_deadlocks';
+SELECT NAME, COUNT, STATUS
+  FROM information_schema.INNODB_METRICS
+ WHERE NAME = 'lock_deadlocks';
 
 -- >>> whichever session survived <<<
 COMMIT;

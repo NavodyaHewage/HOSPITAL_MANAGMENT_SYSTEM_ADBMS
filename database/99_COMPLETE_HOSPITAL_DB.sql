@@ -92,6 +92,7 @@ CREATE TABLE users (
     phone           VARCHAR(20),
     is_active       BOOLEAN       NOT NULL DEFAULT TRUE,
     last_login      DATETIME      NULL,
+    last_logout     DATETIME      NULL,
     created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                   ON UPDATE CURRENT_TIMESTAMP,
@@ -638,6 +639,20 @@ ORDER BY TABLE_NAME;
 --  IMPORTANT: this file runs BEFORE triggers are created (file 05). That is
 --  deliberate - loading 200k rows through row-level triggers is slow and would
 --  pollute audit_logs. All derived columns are computed correctly here by hand.
+--
+--  AND IT IS NOT MERELY AN OPTIMISATION - THE ORDER IS MANDATORY.
+--  Several bulk loads here are of the form
+--      INSERT INTO stock_transactions ... SELECT ... FROM inventory_batches
+--      INSERT INTO lab_results        ... SELECT ... FROM lab_orders
+--      INSERT INTO payments           ... SELECT ... FROM bills
+--  Each of those target tables has an AFTER INSERT trigger that UPDATEs the very
+--  table being read. Once the triggers exist, MySQL rejects the whole statement:
+--      ERROR 1442 (HY000): Can't update table 'bills' in stored function/trigger
+--      because it is already used by statement which invoked this ... trigger
+--  So: NEVER re-run this file against a database that already has file 05
+--  loaded. Re-run the master build (which drops and recreates the schema)
+--  instead. Interactive code must read the value into a variable first and then
+--  INSERT ... VALUES - see the transaction demos in file 07 for that pattern.
 -- ============================================================================
 
 USE hospital_management;
@@ -3027,15 +3042,24 @@ HAVING b.paid_amount    <> actual_paid
 SELECT batch_id, medicine_id, quantity_available
 FROM inventory_batches WHERE quantity_available < 0;
 
--- (c) Inventory: available stock must equal received minus dispensed
+-- (c) Inventory: available stock must equal the signed sum of its ledger.
+--     The signs here MUST mirror trg_stock_tx_ai_apply exactly:
+--         Receive, Return       -> stock in   (+)
+--         Dispense, Adjustment  -> stock out  (-)
+--     (The earlier version of this check added 'Adjustment' instead of
+--      subtracting it, and ignored 'Return' entirely. It only ever passed
+--      because the seed creates neither kind of row - a check that cannot fail
+--      is not a check.)
+--     Every batch starts at 0 and is filled by its 'Receive' transaction, so
+--     quantity_received is deliberately NOT used as the base: doing that would
+--     double-count stock received through sp_receive_medicine_stock.
 SELECT ib.batch_id, ib.quantity_available,
-       ib.quantity_received
-       - COALESCE(SUM(CASE WHEN st.transaction_type = 'Dispense' THEN st.quantity END),0)
-       + COALESCE(SUM(CASE WHEN st.transaction_type = 'Adjustment' THEN st.quantity END),0)
-         AS expected_available
+       COALESCE(SUM(CASE WHEN st.transaction_type IN ('Receive','Return')      THEN  st.quantity
+                         WHEN st.transaction_type IN ('Dispense','Adjustment') THEN -st.quantity
+                    END), 0) AS expected_available
 FROM inventory_batches ib
 LEFT JOIN stock_transactions st ON st.batch_id = ib.batch_id
-GROUP BY ib.batch_id, ib.quantity_available, ib.quantity_received
+GROUP BY ib.batch_id, ib.quantity_available
 HAVING ib.quantity_available <> expected_available;
 
 -- (d) Appointments: no doctor may hold two LIVE appointments in one slot
@@ -3046,14 +3070,19 @@ GROUP BY doctor_id, appointment_date, appointment_time
 HAVING COUNT(*) > 1;
 
 -- (e) Referential integrity spot-check: orphaned children
-SELECT 'orphan appointments' AS problem, COUNT(*) AS n
-FROM appointments a LEFT JOIN patients p ON p.patient_id = a.patient_id
-WHERE p.patient_id IS NULL
-UNION ALL
-SELECT 'orphan prescription_items', COUNT(*)
-FROM prescription_items pi LEFT JOIN prescriptions pr ON pr.prescription_id = pi.prescription_id
-WHERE pr.prescription_id IS NULL
-HAVING n > 0;
+-- NOTE: a trailing HAVING on a UNION binds to the LAST branch only, and that
+-- branch cannot see the alias `n` declared in the first branch (ERROR 1054).
+-- Wrap the UNION in a derived table and filter outside it.
+SELECT * FROM (
+    SELECT 'orphan appointments' AS problem, COUNT(*) AS n
+    FROM appointments a LEFT JOIN patients p ON p.patient_id = a.patient_id
+    WHERE p.patient_id IS NULL
+    UNION ALL
+    SELECT 'orphan prescription_items', COUNT(*)
+    FROM prescription_items pi LEFT JOIN prescriptions pr ON pr.prescription_id = pi.prescription_id
+    WHERE pr.prescription_id IS NULL
+) t
+WHERE t.n > 0;
 
 -- ---------------------------------------------------------------------------
 -- 6.5  SMOKE TEST  -- one call from every member's module, end to end.
@@ -3390,10 +3419,19 @@ START TRANSACTION;
      WHERE bill_id = @bill
      FOR UPDATE;
 
-    -- Step 2: insert the payment fact (half the bill)
-    INSERT INTO payments (bill_id, amount, payment_method, reference_number, received_by)
-    SELECT @bill, ROUND(total_amount / 2, 2), 'Card', 'VIVA-PAY-1', 'Cashier-1'
+    -- Step 2: insert the payment fact (half the bill).
+    -- IMPORTANT: this must NOT be written as
+    --     INSERT INTO payments ... SELECT ... FROM bills ...
+    -- MySQL raises ERROR 1442 ("Can't update table 'bills' in stored
+    -- function/trigger because it is already used by statement which invoked
+    -- this ... trigger"): the AFTER INSERT trigger trg_payments_ai_apply
+    -- UPDATEs bills, but bills is already open for reading in the same
+    -- statement. Read the amount into a variable FIRST, then INSERT ... VALUES.
+    SELECT ROUND(total_amount / 2, 2) INTO @half
       FROM bills WHERE bill_id = @bill;
+
+    INSERT INTO payments (bill_id, amount, payment_method, reference_number, received_by)
+    VALUES (@bill, @half, 'Card', 'VIVA-PAY-1', 'Cashier-1');
 
     -- Step 3: verify the invariant BEFORE committing
     SELECT bill_id, total_amount, paid_amount, balance_amount, status,
@@ -3757,7 +3795,22 @@ EXPLAIN SELECT doctor_id, appointment_date, appointment_time  -- all in the inde
 -- ============================================================================
 
 -- INDEX 1: idx_appointments_doctor_datetime
-ALTER TABLE appointments DROP INDEX idx_appointments_doctor_datetime;
+--
+-- WHY THE PLAIN "DROP INDEX" FAILS HERE (good viva point):
+--   ALTER TABLE appointments DROP INDEX idx_appointments_doctor_datetime;
+--   -> ERROR 1553 (HY000): Cannot drop index ...: needed in a foreign key constraint
+--
+-- When CREATE TABLE declared fk_appt_doctor, InnoDB auto-created a hidden index
+-- on (doctor_id) to enforce it. Creating idx_appointments_doctor_datetime, whose
+-- LEFTMOST column is doctor_id, made that hidden index redundant, so InnoDB
+-- dropped it and let the FK ride on our composite index instead. (Run
+-- SHOW INDEX FROM appointments; there is no fk_appt_doctor index any more.)
+-- Every FK must keep an index, so the composite can no longer be dropped alone.
+--
+-- To run an honest BEFORE/AFTER, drop the constraint first and put it back after.
+ALTER TABLE appointments DROP FOREIGN KEY fk_appt_doctor;
+ALTER TABLE appointments DROP INDEX  idx_appointments_doctor_datetime;
+
 EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
   FROM appointments
  WHERE doctor_id = 7
@@ -3766,6 +3819,13 @@ EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
 
 CREATE INDEX idx_appointments_doctor_datetime
     ON appointments (doctor_id, appointment_date, appointment_time);
+
+-- Re-add the FK only AFTER the composite index exists, so InnoDB reuses it
+-- instead of creating a second, redundant index on (doctor_id).
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appt_doctor FOREIGN KEY (doctor_id)
+        REFERENCES doctors(doctor_id) ON DELETE RESTRICT;
+
 EXPLAIN SELECT appointment_id, patient_id, appointment_time, status
   FROM appointments
  WHERE doctor_id = 7
@@ -3863,23 +3923,49 @@ EXPLAIN SELECT user_id, username FROM users
 -- ---------------------------------------------------------------------------
 -- (1) A FUNCTION ON AN INDEXED COLUMN KILLS THE INDEX  ("non-SARGable")
 -- ---------------------------------------------------------------------------
--- SLOW: YEAR() must be evaluated for every row, so the index cannot be used.
+-- Both queries below also pin doctor_id. That is deliberate: our only index on
+-- appointment_date is the COMPOSITE (doctor_id, appointment_date,
+-- appointment_time), and a composite B+Tree is only seekable from its LEFTMOST
+-- column. Filtering on appointment_date alone can never produce a range scan
+-- here no matter how it is written, so a bare-date before/after would show no
+-- difference and would prove nothing. Fix the leftmost column, then vary only
+-- the thing under test.
+--
+-- SLOW: YEAR() wraps the indexed column, so appointment_date cannot be used for
+--       seeking. The index is entered on doctor_id only and every one of that
+--       doctor's rows is then evaluated.  ->  type=ref, key_len=4
 EXPLAIN SELECT COUNT(*) FROM appointments
- WHERE YEAR(appointment_date) = YEAR(CURDATE());
+ WHERE doctor_id = 7
+   AND YEAR(appointment_date) = YEAR(CURDATE());
 
--- FAST: rewrite as a RANGE on the raw column. Same answer, index usable.
+-- FAST: same answer, rewritten as a RANGE on the bare column, so the second
+--       index column is usable too.                ->  type=range, key_len=7
 EXPLAIN SELECT COUNT(*) FROM appointments
- WHERE appointment_date >= MAKEDATE(YEAR(CURDATE()), 1)
+ WHERE doctor_id = 7
+   AND appointment_date >= MAKEDATE(YEAR(CURDATE()), 1)
    AND appointment_date <  MAKEDATE(YEAR(CURDATE()) + 1, 1);
 -- RULE: keep the indexed column BARE on the left-hand side of the comparison.
+-- Watch key_len grow from 4 to 7: that is the optimizer telling you exactly how
+-- many columns of the composite index it managed to use.
 
 -- ---------------------------------------------------------------------------
 -- (2) LEADING-WILDCARD LIKE
 -- ---------------------------------------------------------------------------
 CREATE INDEX idx_patients_phone ON patients (phone);   -- the demo needs one
-EXPLAIN SELECT patient_id FROM patients WHERE phone LIKE '%1234';   -- type = ALL
-EXPLAIN SELECT patient_id FROM patients WHERE phone LIKE '0703%';   -- type = range
+
+-- NOTE: both queries select first_name, which is NOT in idx_patients_phone.
+-- With "SELECT patient_id" alone the index covers the query, so MySQL happily
+-- scans the whole INDEX (type=index) in both cases and the contrast disappears.
+-- Selecting an uncovered column forces the real choice: seek, or scan the table.
+EXPLAIN SELECT patient_id, first_name FROM patients
+ WHERE phone LIKE '%1234';       -- type = ALL    : full table scan
+
+EXPLAIN SELECT patient_id, first_name FROM patients
+ WHERE phone LIKE '07030000%';   -- type = range  : ~99 rows
 -- A B+Tree is ordered by PREFIX. '%x' has no prefix to seek on.
+-- The prefix also has to be SELECTIVE: every seeded phone starts '07030',
+-- so LIKE '0703%' matches all 5,000 patients and the optimizer correctly
+-- ignores the index. "Indexed" and "worth using" are not the same thing.
 
 -- ---------------------------------------------------------------------------
 -- (3) CORRELATED SUBQUERY -> JOIN  (Member 2's headline example)
@@ -4533,17 +4619,40 @@ ROLLBACK;
 
 -- Through the procedure, the same race gives a clean business error:
 CALL sp_book_or_reschedule_appointment(@ap, 302, 11, @slot_date, '10:00:00', 'via SP');
--- EXPECTED: ERROR 1644 'SLOT ALREADY BOOKED: another user took this doctor/date/time'
+-- EXPECTED: ERROR 1644 'Doctor is not available at that date/time'
+--   Read the procedure to see why THAT message and not the duplicate-key one:
+--   the three defence layers fire in order, and layer 2 (the logical check via
+--   fn_check_doctor_availability) catches this first because the winning row is
+--   already COMMITTED by the time we look. The layer-3 message
+--   'SLOT ALREADY BOOKED: another user took this doctor/date/time' appears only
+--   in the true race - when the other session commits in the window between our
+--   check and our INSERT. That path is the one you cannot demonstrate from a
+--   single tab, and it is exactly why layer 3 has to exist: layer 2 alone is a
+--   check-then-act, and check-then-act is never atomic.
 
 -- ============================================================================
 --  DEMO 6 — CONCURRENT DISPENSING   *** MEMBER 4's MAIN L12-L13 SCENARIO ***
 --  Two pharmacists dispense from the same batch at the same moment.
 -- ============================================================================
--- Prepare a batch holding exactly 100 units
-SELECT batch_id INTO @bt FROM inventory_batches
- WHERE expiry_date >= CURDATE() + INTERVAL 60 DAY ORDER BY batch_id LIMIT 1;
-UPDATE inventory_batches SET quantity_available = 100 WHERE batch_id = @bt;
+-- Prepare a batch holding exactly 100 units.
+-- Do it THROUGH THE LEDGER, not with "UPDATE ... SET quantity_available = 100".
+-- quantity_available is owned by trg_stock_tx_ai_apply (the single-owner rule);
+-- writing it directly leaves the batch disagreeing with its own
+-- stock_transactions history and breaks consistency proof 6.4(c).
+SELECT batch_id, medicine_id, quantity_available
+  INTO @bt, @med, @qty_now
+FROM inventory_batches
+ WHERE expiry_date >= CURDATE() + INTERVAL 60 DAY
+   AND quantity_available > 100
+ ORDER BY batch_id LIMIT 1;
+
+INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type,
+                                quantity, performed_by, notes)
+VALUES (@bt, @med, 'Adjustment', @qty_now - 100, 'demo_setup',
+        'Trim batch to 100 units for the concurrency demo');
+
 SELECT @bt AS demo_batch, quantity_available FROM inventory_batches WHERE batch_id = @bt;
+-- EXPECTED: 100
 
 -- ---------- 6a : WITHOUT LOCKING (the race) ---------------------------------
 -- >>> SESSION A <<<        >>> SESSION B <<<
@@ -4575,17 +4684,20 @@ SELECT quantity_available INTO @qb
 
 -- >>> SESSION A <<<
 -- [A2]
+-- Same ERROR 1442 trap as the payment demo: trg_stock_tx_ai_apply UPDATEs
+-- inventory_batches, so the INSERT may not also SELECT from inventory_batches.
+-- Resolve medicine_id into a variable first, then INSERT ... VALUES.
+SELECT medicine_id INTO @med FROM inventory_batches WHERE batch_id = @bt;
+
 INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type, quantity, performed_by)
-SELECT @bt, medicine_id, 'Dispense', 80, 'Pharmacist-A'
-  FROM inventory_batches WHERE batch_id = @bt;
+VALUES (@bt, @med, 'Dispense', 80, 'Pharmacist-A');
 COMMIT;
 
 -- >>> SESSION B <<<
 -- [B2]  B's SELECT returns 20, not 100. B now dispenses only what exists.
 SELECT @qb AS B_sees_after_unblocking;      -- 20
 INSERT INTO stock_transactions (batch_id, medicine_id, transaction_type, quantity, performed_by)
-SELECT @bt, medicine_id, 'Dispense', 80, 'Pharmacist-B'
-  FROM inventory_batches WHERE batch_id = @bt;
+VALUES (@bt, @med, 'Dispense', 80, 'Pharmacist-B');
 -- EXPECTED: ERROR 1644 'STOCK CANNOT GO NEGATIVE: dispense rejected'
 ROLLBACK;
 
@@ -4651,7 +4763,15 @@ UPDATE bills SET discount = discount WHERE bill_id = @d1;   -- waits for A -> CY
 -- Inspect it:
 SHOW ENGINE INNODB STATUS;          -- read the "LATEST DETECTED DEADLOCK" section
 SELECT * FROM performance_schema.data_lock_waits;
-SHOW STATUS LIKE 'Innodb_deadlocks';
+-- NOTE: 'Innodb_deadlocks' is a Percona Server status variable and does NOT
+-- exist in MySQL Community (SHOW STATUS just returns an empty set - which looks
+-- like "zero deadlocks" and is really "no such counter"). The portable
+-- equivalent in MySQL 8 is the INNODB_METRICS counter, which must be switched
+-- on first because it is disabled by default:
+SET GLOBAL innodb_monitor_enable = 'lock_deadlocks';
+SELECT NAME, COUNT, STATUS
+  FROM information_schema.INNODB_METRICS
+ WHERE NAME = 'lock_deadlocks';
 
 -- >>> whichever session survived <<<
 COMMIT;
