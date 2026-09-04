@@ -1,1 +1,46 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles and the theme tokens the login and dashboard screens use. */
+
+:root {
+  color-scheme: light;
+
+  --hms-primary: #0f6e63;
+  --hms-primary-dark: #0b544b;
+  --hms-primary-soft: #e6f4f1;
+  --hms-danger: #c0392b;
+  --hms-danger-soft: #fdecea;
+  --hms-ink: #1a2733;
+  --hms-ink-muted: #5b6b76;
+  --hms-border: #d8e2e0;
+  --hms-surface: #ffffff;
+  --hms-background: #f4f7f6;
+  --hms-radius: 12px;
+  --hms-shadow: 0 20px 45px -20px rgba(15, 110, 99, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  background: var(--hms-background);
+  color: var(--hms-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}

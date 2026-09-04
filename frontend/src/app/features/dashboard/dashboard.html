@@ -1,0 +1,44 @@
+<div class="dashboard-page">
+  <header class="dashboard-header">
+    <div>
+      <h1>Hospital Management System</h1>
+      <p>Welcome back, {{ authService.currentUser()?.fullName }}</p>
+    </div>
+    <button type="button" class="dashboard-logout" (click)="logout()">Sign out</button>
+  </header>
+
+  <section class="dashboard-card">
+    <h2>Signed in as</h2>
+    <dl class="dashboard-profile">
+      <dt>Username</dt>
+      <dd>{{ authService.currentUser()?.username }}</dd>
+
+      <dt>Email</dt>
+      <dd>{{ authService.currentUser()?.email || '—' }}</dd>
+
+      <dt>Roles</dt>
+      <dd>
+        @for (role of authService.roles(); track role) {
+          <span class="dashboard-chip">{{ role }}</span>
+        }
+      </dd>
+
+      <dt>Permissions</dt>
+      <dd class="dashboard-permissions">
+        @for (permission of authService.permissions(); track permission) {
+          <span class="dashboard-chip dashboard-chip--muted">{{ permission }}</span>
+        }
+      </dd>
+    </dl>
+  </section>
+
+  @if (canManageUsers()) {
+    <section class="dashboard-card">
+      <h2>Administration</h2>
+      <p class="dashboard-admin__hint">
+        Create a staff account and assign its role in one transaction.
+      </p>
+      <a class="dashboard-admin__link" routerLink="/users/register">Register system user</a>
+    </section>
+  }
+</div>

@@ -40,7 +40,14 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserResponse createUser(CreateUserRequest request, String assignedBy) {
-        Integer userId = procedureRepository.createUserWithRole(request, assignedBy);
+        // trg_users_ai_audit stamps audit_logs.user_id from @app_user_id, so the
+        // actor is resolved to an id here; without it the audit row records that
+        // an account was created but not who created it.
+        Integer actorUserId = userRepository.findByUsername(assignedBy)
+                .map(User::getUserId)
+                .orElse(null);
+
+        Integer userId = procedureRepository.createUserWithRole(request, assignedBy, actorUserId);
         return getById(userId);
     }
 

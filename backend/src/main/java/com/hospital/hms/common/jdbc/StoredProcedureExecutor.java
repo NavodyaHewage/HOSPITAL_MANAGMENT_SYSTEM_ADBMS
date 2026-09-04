@@ -77,7 +77,7 @@ public class StoredProcedureExecutor {
      * balance", ...). Surface it to the client instead of a generic 500 - the
      * schema wrote those messages to be read by a human.
      */
-    private RuntimeException translate(DataAccessException ex) {
+    public static RuntimeException translate(DataAccessException ex) {
         SQLException cause = ex instanceof UncategorizedSQLException uncategorized
                 ? uncategorized.getSQLException()
                 : findSqlException(ex);
@@ -88,7 +88,7 @@ public class StoredProcedureExecutor {
         return ex;
     }
 
-    private SQLException findSqlException(Throwable ex) {
+    private static SQLException findSqlException(Throwable ex) {
         for (Throwable t = ex; t != null; t = t.getCause()) {
             if (t instanceof SQLException sqlException) {
                 return sqlException;
@@ -98,7 +98,7 @@ public class StoredProcedureExecutor {
     }
 
     /** The driver prefixes SIGNAL messages; the rule text is what matters. */
-    private String stripPrefix(String message) {
+    private static String stripPrefix(String message) {
         if (message == null) {
             return "Business rule violated";
         }

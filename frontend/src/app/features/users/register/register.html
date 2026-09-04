@@ -1,0 +1,201 @@
+<div class="register-page">
+  <div class="register-card">
+    <header class="register-head">
+      <div>
+        <h1>Register System User</h1>
+        <p>Creates the account and assigns its role in a single transaction.</p>
+      </div>
+      <a class="register-back" routerLink="/dashboard">Back to dashboard</a>
+    </header>
+
+    @if (registered(); as user) {
+      <div class="register-success" role="status">
+        <p class="register-success__title">User registered</p>
+        <dl class="register-success__facts">
+          <div>
+            <dt>User ID</dt>
+            <dd>{{ user.userId }}</dd>
+          </div>
+          <div>
+            <dt>Username</dt>
+            <dd>{{ user.username }}</dd>
+          </div>
+          <div>
+            <dt>Full name</dt>
+            <dd>{{ user.fullName }}</dd>
+          </div>
+          <div>
+            <dt>Role</dt>
+            <dd>{{ user.roles.join(', ') || '—' }}</dd>
+          </div>
+        </dl>
+        <button type="button" class="register-secondary" (click)="registerAnother()">
+          Register another user
+        </button>
+      </div>
+    } @else {
+      @if (errorMessage()) {
+        <div class="register-alert" role="alert">{{ errorMessage() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <!-- Name -->
+        <div class="register-field">
+          <label for="fullName">Full name</label>
+          <input
+            id="fullName"
+            type="text"
+            formControlName="fullName"
+            autocomplete="name"
+            placeholder="e.g. Nimal Perera"
+            (input)="clearServerError('fullName')"
+          />
+          @if (form.controls.fullName.invalid && form.controls.fullName.touched) {
+            <p class="register-error">
+              @if (form.controls.fullName.hasError('required')) {
+                Full name is required.
+              } @else {
+                Full name must be 3 to 100 characters.
+              }
+            </p>
+          } @else if (serverErrorFor('fullName'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          }
+        </div>
+
+        <!-- Username -->
+        <div class="register-field">
+          <label for="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            formControlName="username"
+            autocomplete="off"
+            placeholder="e.g. nimal.perera"
+            (input)="clearServerError('username')"
+          />
+          @if (form.controls.username.invalid && form.controls.username.touched) {
+            <p class="register-error">
+              @if (form.controls.username.hasError('required')) {
+                Username is required.
+              } @else if (form.controls.username.hasError('pattern')) {
+                Use letters, digits, dot, underscore or hyphen only.
+              } @else {
+                Username must be 3 to 50 characters.
+              }
+            </p>
+          } @else if (serverErrorFor('username'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          } @else {
+            <p class="register-hint">Must be unique. The user signs in with this.</p>
+          }
+        </div>
+
+        <!-- Password -->
+        <div class="register-field">
+          <label for="password">Password</label>
+          <div class="register-password">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="new-password"
+              (input)="clearServerError('password')"
+            />
+            <button
+              type="button"
+              class="register-reveal"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-pressed]="showPassword()"
+            >
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <p class="register-error">
+              @if (form.controls.password.hasError('required')) {
+                Password is required.
+              } @else {
+                Password must be at least 8 characters.
+              }
+            </p>
+          } @else if (serverErrorFor('password'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          } @else {
+            <p class="register-hint">At least 8 characters. Hashed by the database on insert.</p>
+          }
+        </div>
+
+        <!-- Telephone -->
+        <div class="register-field">
+          <label for="phone">Telephone number</label>
+          <input
+            id="phone"
+            type="tel"
+            inputmode="tel"
+            formControlName="phone"
+            autocomplete="tel"
+            placeholder="e.g. +94 71 234 5678"
+            (input)="clearServerError('phone')"
+          />
+          @if (form.controls.phone.invalid && form.controls.phone.touched) {
+            <p class="register-error">
+              @if (form.controls.phone.hasError('required')) {
+                Telephone number is required.
+              } @else {
+                Enter a valid telephone number, for example +94 71 234 5678.
+              }
+            </p>
+          } @else if (serverErrorFor('phone'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          }
+        </div>
+
+        <!-- Email (optional) -->
+        <div class="register-field">
+          <label for="email">Email <span class="register-optional">optional</span></label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="e.g. nimal@hospital.lk"
+            (input)="clearServerError('email')"
+          />
+          @if (form.controls.email.invalid && form.controls.email.touched) {
+            <p class="register-error">Enter a valid email address.</p>
+          } @else if (serverErrorFor('email'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          }
+        </div>
+
+        <!-- Role -->
+        <div class="register-field">
+          <label for="roleName">Role</label>
+          <select
+            id="roleName"
+            formControlName="roleName"
+            [class.register-select--placeholder]="!selectedRole()"
+            (change)="clearServerError('roleName')"
+          >
+            <option value="" disabled>Select a role…</option>
+            @for (role of roleOptions; track role.value) {
+              <option [value]="role.value">{{ role.label }}</option>
+            }
+          </select>
+          @if (form.controls.roleName.invalid && form.controls.roleName.touched) {
+            <p class="register-error">Role is required.</p>
+          } @else if (serverErrorFor('roleName'); as serverError) {
+            <p class="register-error">{{ serverError }}</p>
+          } @else if (roleDescription(); as description) {
+            <p class="register-hint">{{ description }}</p>
+          }
+        </div>
+
+        <button type="submit" class="register-submit" [disabled]="isSubmitting()">
+          {{ isSubmitting() ? 'Registering…' : 'Register user' }}
+        </button>
+      </form>
+    }
+  </div>
+</div>

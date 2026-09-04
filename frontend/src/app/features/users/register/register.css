@@ -1,0 +1,226 @@
+.register-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius);
+  box-shadow: var(--hms-shadow);
+  padding: 2rem;
+}
+
+.register-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hms-border);
+}
+
+.register-head h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--hms-ink);
+}
+
+.register-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--hms-ink-muted);
+}
+
+.register-back {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--hms-primary);
+  text-decoration: none;
+}
+
+.register-back:hover {
+  text-decoration: underline;
+}
+
+.register-alert {
+  background: var(--hms-danger-soft);
+  color: var(--hms-danger);
+  border: 1px solid rgba(192, 57, 43, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.register-field {
+  margin-bottom: 1.15rem;
+}
+
+.register-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--hms-ink);
+  margin-bottom: 0.4rem;
+}
+
+.register-optional {
+  font-weight: 400;
+  color: var(--hms-ink-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  margin-left: 0.35rem;
+}
+
+.register-field input,
+.register-field select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--hms-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--hms-ink);
+  background: #fff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.register-field input:focus,
+.register-field select:focus {
+  outline: none;
+  border-color: var(--hms-primary);
+  box-shadow: 0 0 0 3px var(--hms-primary-soft);
+}
+
+/* Keeps the unselected "Select a role…" line visually a placeholder. */
+.register-select--placeholder {
+  color: var(--hms-ink-muted);
+}
+
+.register-password {
+  position: relative;
+}
+
+.register-password input {
+  padding-right: 4.25rem;
+}
+
+.register-reveal {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hms-primary);
+  cursor: pointer;
+}
+
+.register-reveal:hover {
+  color: var(--hms-primary-dark);
+}
+
+.register-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--hms-danger);
+}
+
+.register-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--hms-ink-muted);
+}
+
+.register-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.72rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--hms-primary);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.register-submit:hover:not(:disabled) {
+  background: var(--hms-primary-dark);
+}
+
+.register-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.register-success {
+  background: var(--hms-primary-soft);
+  border: 1px solid rgba(15, 110, 99, 0.25);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.register-success__title {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--hms-primary-dark);
+}
+
+.register-success__facts {
+  margin: 0 0 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.85rem;
+}
+
+.register-success__facts div {
+  min-width: 0;
+}
+
+.register-success__facts dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hms-ink-muted);
+}
+
+.register-success__facts dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--hms-ink);
+  overflow-wrap: anywhere;
+}
+
+.register-secondary {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--hms-primary);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hms-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.register-secondary:hover {
+  background: rgba(15, 110, 99, 0.08);
+}

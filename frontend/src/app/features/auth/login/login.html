@@ -1,0 +1,64 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="login-brand__mark">H</span>
+      <div>
+        <h1>Hospital Management System</h1>
+        <p>Sign in to continue</p>
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="login-alert" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="login-field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          autocomplete="username"
+          placeholder="e.g. user007"
+        />
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <span class="login-field__error">Username is required.</span>
+        }
+      </div>
+
+      <div class="login-field">
+        <label for="password">Password</label>
+        <div class="login-password">
+          <input
+            id="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            class="login-password__toggle"
+            (click)="togglePasswordVisibility()"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          >
+            {{ showPassword() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="login-field__error">Password is required.</span>
+        }
+      </div>
+
+      <button type="submit" class="login-submit" [disabled]="isSubmitting()">
+        @if (isSubmitting()) {
+          <span class="login-spinner" aria-hidden="true"></span>
+          Signing in…
+        } @else {
+          Sign in
+        }
+      </button>
+    </form>
+  </div>
+</div>

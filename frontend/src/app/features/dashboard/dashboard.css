@@ -1,0 +1,114 @@
+.dashboard-page {
+  min-height: 100dvh;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--hms-ink);
+}
+
+.dashboard-header p {
+  margin: 0.2rem 0 0;
+  color: var(--hms-ink-muted);
+  font-size: 0.9rem;
+}
+
+.dashboard-logout {
+  border: 1px solid var(--hms-border);
+  background: #fff;
+  color: var(--hms-ink);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dashboard-logout:hover {
+  border-color: var(--hms-primary);
+  color: var(--hms-primary);
+}
+
+.dashboard-card {
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius);
+  padding: 1.75rem;
+  max-width: 640px;
+}
+
+.dashboard-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--hms-ink);
+}
+
+.dashboard-profile {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  align-items: start;
+}
+
+.dashboard-profile dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--hms-ink-muted);
+  padding-top: 0.2rem;
+}
+
+.dashboard-profile dd {
+  margin: 0;
+  font-size: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dashboard-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dashboard-chip--muted {
+  background: #eef1f3;
+  color: var(--hms-ink-muted);
+}
+
+.dashboard-admin__hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--hms-ink-muted);
+}
+
+.dashboard-admin__link {
+  display: inline-block;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  background: var(--hms-primary);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dashboard-admin__link:hover {
+  background: var(--hms-primary-dark);
+}
