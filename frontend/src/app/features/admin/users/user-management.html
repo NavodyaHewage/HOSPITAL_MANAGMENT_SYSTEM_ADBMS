@@ -1,0 +1,88 @@
+<div class="admin-page">
+  <header class="admin-head">
+    <div>
+      <h1>User Management</h1>
+      <p>{{ totalElements() }} system user{{ totalElements() === 1 ? '' : 's' }} total.</p>
+    </div>
+    <a class="admin-back" routerLink="/dashboard">Back to dashboard</a>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="admin-alert" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <div class="admin-card">
+    @if (isLoading()) {
+      <div class="admin-empty">Loading users…</div>
+    } @else if (users().length === 0) {
+      <div class="admin-empty">No users found.</div>
+    } @else {
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of users(); track user.userId) {
+              <tr>
+                <td class="admin-table__muted">{{ user.userId }}</td>
+                <td class="admin-table__strong">
+                  {{ user.username }}
+                  @if (isSelf(user)) {
+                    <span class="admin-you">you</span>
+                  }
+                </td>
+                <td>{{ user.email || '—' }}</td>
+                <td>
+                  @for (role of user.roles; track role) {
+                    <span class="admin-chip">{{ role }}</span>
+                  } @empty {
+                    <span class="admin-table__muted">—</span>
+                  }
+                </td>
+                <td>
+                  <span
+                    class="admin-status"
+                    [class.admin-status--active]="user.isActive"
+                    [class.admin-status--disabled]="!user.isActive"
+                  >
+                    {{ user.isActive ? 'Active' : 'Disabled' }}
+                  </span>
+                </td>
+                <td class="admin-table__muted">{{ formatDate(user.createdAt) }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="admin-toggle"
+                    [class.admin-toggle--enable]="!user.isActive"
+                    [disabled]="togglingUserId() === user.userId || isSelf(user)"
+                    [attr.title]="isSelf(user) ? 'You cannot change your own status' : null"
+                    (click)="toggleStatus(user)"
+                  >
+                    {{ togglingUserId() === user.userId ? 'Saving…' : user.isActive ? 'Disable' : 'Enable' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+        <div class="admin-pager">
+          <button type="button" [disabled]="page() === 0" (click)="previousPage()">Previous</button>
+          <span>Page {{ page() + 1 }} of {{ totalPages() }}</span>
+          <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">Next</button>
+        </div>
+      }
+    }
+  </div>
+</div>

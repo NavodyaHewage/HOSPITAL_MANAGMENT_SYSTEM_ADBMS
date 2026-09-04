@@ -12,6 +12,7 @@ public record UserResponse(
         Boolean isActive,
         LocalDateTime lastLogin,
         LocalDateTime lastLogout,
+        LocalDateTime createdAt,
         List<String> roles,
         List<String> permissions) {
 }

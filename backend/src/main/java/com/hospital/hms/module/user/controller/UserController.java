@@ -50,18 +50,21 @@ public class UserController {
         return ApiResponse.ok(userService.getById(id));
     }
 
+    /** includeInactive=true is what the admin user-management table needs. */
     @GetMapping
-    public ApiResponse<PageResponse<UserResponse>> listActive(
+    public ApiResponse<PageResponse<UserResponse>> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.ok(userService.listActive(page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        return ApiResponse.ok(userService.list(page, size, includeInactive));
     }
 
     /** Deactivates rather than deletes, so the audit history stays attributable. */
     @PatchMapping("/{id}/active")
     public ApiResponse<Void> setActive(@PathVariable Integer id,
-                                       @RequestParam boolean active) {
-        userService.setActive(id, active);
+                                       @RequestParam boolean active,
+                                       Principal principal) {
+        userService.setActive(id, active, currentUserId(principal));
         return ApiResponse.ok(active ? "User activated" : "User deactivated", null);
     }
 

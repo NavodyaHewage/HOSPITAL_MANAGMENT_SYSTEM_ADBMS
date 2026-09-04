@@ -1,0 +1,289 @@
+/*
+ * Shared chrome for the /admin/* screens (User Management, Audit Log Viewer):
+ * page head with a back link, an alert banner, a card wrapping a scrollable
+ * table, and a pager. Kept in one file so the two screens read as one
+ * consistent surface rather than two near-duplicate stylesheets.
+ */
+
+.admin-page {
+  min-height: 100dvh;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+
+.admin-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-head h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--hms-ink);
+}
+
+.admin-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  color: var(--hms-ink-muted);
+}
+
+.admin-back {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--hms-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-back:hover {
+  text-decoration: underline;
+}
+
+.admin-alert {
+  background: var(--hms-danger-soft);
+  color: var(--hms-danger);
+  border: 1px solid rgba(192, 57, 43, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-card {
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius);
+  overflow: hidden;
+}
+
+.admin-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--hms-ink-muted);
+  font-size: 0.9rem;
+}
+
+/* Wide tables scroll inside the card rather than the page - the page itself
+   must never gain horizontal scroll. */
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hms-ink-muted);
+  background: var(--hms-background);
+  border-bottom: 1px solid var(--hms-border);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--hms-border);
+  color: var(--hms-ink);
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--hms-background);
+}
+
+.admin-table__muted {
+  color: var(--hms-ink-muted);
+}
+
+.admin-table__strong {
+  font-weight: 600;
+}
+
+.admin-you {
+  margin-left: 0.4rem;
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  margin: 0.1rem 0.25rem 0.1rem 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.admin-status--active {
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
+}
+
+.admin-status--disabled {
+  background: var(--hms-danger-soft);
+  color: var(--hms-danger);
+}
+
+.admin-toggle {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--hms-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--hms-danger);
+  border-color: rgba(192, 57, 43, 0.3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.admin-toggle:hover:not(:disabled) {
+  background: var(--hms-danger-soft);
+}
+
+.admin-toggle--enable {
+  color: var(--hms-primary-dark);
+  border-color: rgba(15, 110, 99, 0.3);
+}
+
+.admin-toggle--enable:hover:not(:disabled) {
+  background: var(--hms-primary-soft);
+}
+
+.admin-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 1px solid var(--hms-border);
+  font-size: 0.82rem;
+  color: var(--hms-ink-muted);
+}
+
+.admin-pager button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--hms-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--hms-ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-pager button:hover:not(:disabled) {
+  border-color: var(--hms-primary);
+  color: var(--hms-primary);
+}
+
+.admin-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Audit Log Viewer specifics: action badges and a monospace details column. */
+
+.admin-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.admin-action--insert {
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
+}
+
+.admin-action--update {
+  background: #fff4e0;
+  color: #9a5b00;
+}
+
+.admin-action--delete {
+  background: var(--hms-danger-soft);
+  color: var(--hms-danger);
+}
+
+.admin-action--login,
+.admin-action--logout {
+  background: #eaf1fb;
+  color: #2a5ba8;
+}
+
+.admin-details {
+  display: block;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--hms-ink-muted);
+}
+
+.admin-details:hover {
+  white-space: normal;
+  overflow: visible;
+}

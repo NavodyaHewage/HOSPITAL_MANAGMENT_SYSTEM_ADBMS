@@ -16,6 +16,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +26,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserProcedureRepository procedureRepository;
     private final UserViewRepository viewRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public UserServiceImpl(UserRepository userRepository,
                            UserProcedureRepository procedureRepository,
-                           UserViewRepository viewRepository) {
+                           UserViewRepository viewRepository,
+                           JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.procedureRepository = procedureRepository;
         this.viewRepository = viewRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -61,9 +65,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> listActive(int page, int size) {
-        Page<User> result = userRepository.findAllByIsActiveTrue(
-                PageRequest.of(page, size, Sort.by("username").ascending()));
+    public PageResponse<UserResponse> list(int page, int size, boolean includeInactive) {
+        var pageable = PageRequest.of(page, size, Sort.by("username").ascending());
+        Page<User> result = includeInactive
+                ? userRepository.findAll(pageable)
+                : userRepository.findAllByIsActiveTrue(pageable);
 
         var content = result.getContent().stream().map(this::toResponse).toList();
         return new PageResponse<>(content, result.getNumber(), result.getSize(),
@@ -74,13 +80,25 @@ public class UserServiceImpl implements UserService {
      * Deactivates rather than deletes. audit_logs.user_id is ON DELETE SET NULL,
      * so removing a user would anonymise their entire audit history - exactly
      * the history you most want to keep. trg_users_au_session records the
-     * is_active change automatically.
+     * is_active change automatically, reading the acting admin from
+     * {@code @app_user_id}. Setting that session variable and the save below
+     * both run inside this one @Transactional method, so Spring binds them to
+     * the same physical connection and the variable is visible when the
+     * trigger fires - without that they could land on different pooled
+     * connections and the audit row would record no actor at all.
      */
     @Override
     @Transactional
-    public void setActive(Integer userId, boolean active) {
+    public void setActive(Integer userId, boolean active, Integer actorUserId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (actorUserId == null) {
+            jdbcTemplate.update("SET @app_user_id = NULL");
+        } else {
+            jdbcTemplate.update("SET @app_user_id = ?", actorUserId);
+        }
+
         user.setIsActive(active);
         userRepository.saveAndFlush(user);
     }
@@ -120,6 +138,7 @@ public class UserServiceImpl implements UserService {
                 user.getIsActive(),
                 user.getLastLogin(),
                 user.getLastLogout(),
+                user.getCreatedAt(),
                 userRepository.findRoleNames(user.getUserId()),
                 userRepository.findPermissionNames(user.getUserId()));
     }

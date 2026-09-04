@@ -24,6 +24,7 @@ export interface UserResponse {
   isActive: boolean;
   lastLogin: string | null;
   lastLogout: string | null;
+  createdAt: string | null;
   roles: string[];
   permissions: string[];
 }

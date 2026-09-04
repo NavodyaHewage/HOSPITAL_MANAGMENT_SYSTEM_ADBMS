@@ -1,27 +1,43 @@
 <div class="dashboard-page">
-  <header class="dashboard-header">
-    <div>
-      <h1>Hospital Management System</h1>
-      <p>Welcome back, {{ authService.currentUser()?.fullName }}</p>
+  <header class="dashboard-banner">
+    <div class="dashboard-banner__identity">
+      <span class="dashboard-avatar" aria-hidden="true">{{ initial() }}</span>
+      <div>
+        <h1>Welcome back, {{ authService.currentUser()?.fullName }}</h1>
+        <p>
+          <span class="dashboard-banner__username">&#64;{{ authService.currentUser()?.username }}</span>
+          @for (role of authService.roles(); track role) {
+            <span class="dashboard-chip">{{ role }}</span>
+          }
+        </p>
+      </div>
     </div>
     <button type="button" class="dashboard-logout" (click)="logout()">Sign out</button>
   </header>
 
-  <section class="dashboard-card">
-    <h2>Signed in as</h2>
-    <dl class="dashboard-profile">
-      <dt>Username</dt>
-      <dd>{{ authService.currentUser()?.username }}</dd>
+  @if (hasAdminAccess()) {
+    <section class="dashboard-section">
+      <h2>Administration</h2>
+      <div class="dashboard-grid">
+        @for (tile of adminTiles; track tile.title) {
+          @if (canOpen(tile)) {
+            <article class="dashboard-tile">
+              <span class="dashboard-tile__icon" aria-hidden="true">{{ tile.icon }}</span>
+              <h3>{{ tile.title }}</h3>
+              <p>{{ tile.description }}</p>
+              <a class="dashboard-tile__link" [routerLink]="tile.link">{{ tile.linkLabel }}</a>
+            </article>
+          }
+        }
+      </div>
+    </section>
+  }
 
+  <details class="dashboard-details">
+    <summary>Session details</summary>
+    <dl class="dashboard-profile">
       <dt>Email</dt>
       <dd>{{ authService.currentUser()?.email || '—' }}</dd>
-
-      <dt>Roles</dt>
-      <dd>
-        @for (role of authService.roles(); track role) {
-          <span class="dashboard-chip">{{ role }}</span>
-        }
-      </dd>
 
       <dt>Permissions</dt>
       <dd class="dashboard-permissions">
@@ -30,15 +46,5 @@
         }
       </dd>
     </dl>
-  </section>
-
-  @if (canManageUsers()) {
-    <section class="dashboard-card">
-      <h2>Administration</h2>
-      <p class="dashboard-admin__hint">
-        Create a staff account and assign its role in one transaction.
-      </p>
-      <a class="dashboard-admin__link" routerLink="/users/register">Register system user</a>
-    </section>
-  }
+  </details>
 </div>
