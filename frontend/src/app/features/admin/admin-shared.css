@@ -171,6 +171,27 @@
   color: var(--hms-danger);
 }
 
+/* A user can be Active-and-Locked or Disabled-and-Locked at once - is_active
+   (admin-controlled) and is_locked (brute-force protection) are independent,
+   so both badges can show together. */
+.admin-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-status--locked {
+  background: #fff4e0;
+  color: #9a5b00;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .admin-toggle {
   padding: 0.4rem 0.85rem;
   border: 1px solid var(--hms-border);
@@ -198,6 +219,15 @@
 
 .admin-toggle--enable:hover:not(:disabled) {
   background: var(--hms-primary-soft);
+}
+
+.admin-toggle--unlock {
+  color: #9a5b00;
+  border-color: rgba(154, 91, 0, 0.3);
+}
+
+.admin-toggle--unlock:hover:not(:disabled) {
+  background: #fff4e0;
 }
 
 .admin-toggle:disabled {
@@ -270,6 +300,16 @@
 .admin-action--logout {
   background: #eaf1fb;
   color: #2a5ba8;
+}
+
+.admin-action--lock {
+  background: var(--hms-danger-soft);
+  color: var(--hms-danger);
+}
+
+.admin-action--unlock {
+  background: var(--hms-primary-soft);
+  color: var(--hms-primary-dark);
 }
 
 .admin-details {

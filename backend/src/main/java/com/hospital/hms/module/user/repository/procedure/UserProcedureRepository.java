@@ -27,6 +27,7 @@ import org.springframework.stereotype.Repository;
 public class UserProcedureRepository {
 
     private static final String SP_ASSIGN_REVOKE = "sp_assign_revoke_role_permission";
+    private static final String SP_UNLOCK_ACCOUNT = "sp_unlock_user_account";
     private static final String FN_CHECK_PERMISSION = "fn_check_user_permission";
 
     private static final String CALL_CREATE_USER =
@@ -111,5 +112,19 @@ public class UserProcedureRepository {
         Boolean has = executor.callFunction(FN_CHECK_PERMISSION, Boolean.class,
                 userId, permissionName);
         return Boolean.TRUE.equals(has);
+    }
+
+    /**
+     * Resets is_locked and failed_attempts to their unlocked state. The
+     * procedure sets {@code @app_user_id = p_admin_id} itself and re-checks
+     * USER_MANAGE via fn_check_user_permission - a defense-in-depth backstop
+     * behind UserController's/UserUnlockController's class-level
+     * {@code @PreAuthorize}, not something Java needs to duplicate.
+     */
+    public void unlockAccount(Integer userId, Integer adminId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("p_user_id", userId);
+        params.put("p_admin_id", adminId);
+        executor.call(SP_UNLOCK_ACCOUNT, params);
     }
 }

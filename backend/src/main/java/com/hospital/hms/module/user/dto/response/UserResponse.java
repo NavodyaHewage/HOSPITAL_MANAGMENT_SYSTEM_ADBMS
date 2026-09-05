@@ -13,6 +13,10 @@ public record UserResponse(
         LocalDateTime lastLogin,
         LocalDateTime lastLogout,
         LocalDateTime createdAt,
+        /** True once sp_handle_failed_login has locked this account. */
+        Boolean isLocked,
+        /** Consecutive wrong passwords since the last success or admin unlock. */
+        Integer failedAttempts,
         List<String> roles,
         List<String> permissions) {
 }

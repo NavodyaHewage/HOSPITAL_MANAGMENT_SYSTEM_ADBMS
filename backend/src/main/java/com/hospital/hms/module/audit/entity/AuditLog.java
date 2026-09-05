@@ -46,7 +46,7 @@ public class AuditLog {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action", nullable = false,
-            columnDefinition = "enum('INSERT','UPDATE','DELETE','LOGIN','LOGOUT')")
+            columnDefinition = "enum('INSERT','UPDATE','DELETE','LOGIN','LOGOUT','LOCK','UNLOCK')")
     private AuditAction action;
 
     @Column(name = "old_value")

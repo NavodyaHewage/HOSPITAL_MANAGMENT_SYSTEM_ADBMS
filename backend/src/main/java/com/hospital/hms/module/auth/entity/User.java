@@ -55,6 +55,25 @@ public class User {
     @Column(name = "last_logout")
     private LocalDateTime lastLogout;
 
+    /**
+     * Owned by sp_handle_failed_login (increments on a wrong password) and
+     * sp_unlock_user_account (resets to 0) - see
+     * database/member5_account_lockout.sql. AuthServiceImpl also clears this
+     * directly on a successful login so a stale count from weeks of unrelated
+     * typos doesn't compound toward the same lockout threshold.
+     */
+    @Column(name = "failed_attempts", nullable = false)
+    private Integer failedAttempts;
+
+    /**
+     * True once failed_attempts reaches the lockout threshold set in
+     * sp_handle_failed_login (5). AuthServiceImpl.login()/refresh() both
+     * refuse a locked account regardless of password. Writing this flips
+     * trg_users_account_locked_audit, which logs a LOCK/UNLOCK audit row.
+     */
+    @Column(name = "is_locked", nullable = false)
+    private Boolean isLocked;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

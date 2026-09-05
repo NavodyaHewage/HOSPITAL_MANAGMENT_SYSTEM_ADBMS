@@ -5,7 +5,7 @@ export interface AuditLogResponse {
   username: string | null;
   entityName: string;
   entityId: number | null;
-  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | null;
+  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'LOCK' | 'UNLOCK' | null;
   oldValue: string | null;
   newValue: string | null;
   ipAddress: string | null;

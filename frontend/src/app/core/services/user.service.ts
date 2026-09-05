@@ -48,4 +48,17 @@ export class UserService {
     const params = new HttpParams().set('active', active);
     return this.http.patch<ApiResponse<void>>(`${this.baseUrl}/${userId}/active`, null, { params });
   }
+
+  /**
+   * Resets a locked account (sp_unlock_user_account): is_locked back to
+   * false, failed_attempts back to 0.
+   *
+   * This one action's path is versioned (/api/v1/users/{id}/unlock), unlike
+   * the rest of this service - it lives behind UserUnlockController on the
+   * backend rather than UserController, so it is built from environment.apiUrl
+   * directly instead of this.baseUrl.
+   */
+  unlockUser(userId: number): Observable<ApiResponse<void>> {
+    return this.http.patch<ApiResponse<void>>(`${environment.apiUrl}/v1/users/${userId}/unlock`, null);
+  }
 }

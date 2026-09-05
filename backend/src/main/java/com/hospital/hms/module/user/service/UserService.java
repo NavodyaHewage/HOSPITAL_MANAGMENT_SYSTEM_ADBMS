@@ -36,4 +36,13 @@ public interface UserService {
     void assignOrRevokePermission(RolePermissionRequest request, Integer actorUserId);
 
     boolean hasPermission(Integer userId, String permissionName);
+
+    /**
+     * Resets a locked account back to normal (is_locked = false,
+     * failed_attempts = 0), via sp_unlock_user_account.
+     *
+     * @param actorUserId the admin performing the unlock, stamped onto the
+     *                    UNLOCK audit row by trg_users_account_locked_audit
+     */
+    void unlockAccount(Integer userId, Integer actorUserId);
 }

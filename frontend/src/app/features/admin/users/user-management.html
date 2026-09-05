@@ -49,26 +49,48 @@
                   }
                 </td>
                 <td>
-                  <span
-                    class="admin-status"
-                    [class.admin-status--active]="user.isActive"
-                    [class.admin-status--disabled]="!user.isActive"
-                  >
-                    {{ user.isActive ? 'Active' : 'Disabled' }}
-                  </span>
+                  <div class="admin-status-group">
+                    <span
+                      class="admin-status"
+                      [class.admin-status--active]="user.isActive"
+                      [class.admin-status--disabled]="!user.isActive"
+                    >
+                      {{ user.isActive ? 'Active' : 'Disabled' }}
+                    </span>
+                    @if (user.isLocked) {
+                      <span
+                        class="admin-status admin-status--locked"
+                        [attr.title]="user.failedAttempts + ' failed sign-in attempt(s)'"
+                      >
+                        Locked
+                      </span>
+                    }
+                  </div>
                 </td>
                 <td class="admin-table__muted">{{ formatDate(user.createdAt) }}</td>
                 <td>
-                  <button
-                    type="button"
-                    class="admin-toggle"
-                    [class.admin-toggle--enable]="!user.isActive"
-                    [disabled]="togglingUserId() === user.userId || isSelf(user)"
-                    [attr.title]="isSelf(user) ? 'You cannot change your own status' : null"
-                    (click)="toggleStatus(user)"
-                  >
-                    {{ togglingUserId() === user.userId ? 'Saving…' : user.isActive ? 'Disable' : 'Enable' }}
-                  </button>
+                  <div class="admin-actions">
+                    <button
+                      type="button"
+                      class="admin-toggle"
+                      [class.admin-toggle--enable]="!user.isActive"
+                      [disabled]="togglingUserId() === user.userId || isSelf(user)"
+                      [attr.title]="isSelf(user) ? 'You cannot change your own status' : null"
+                      (click)="toggleStatus(user)"
+                    >
+                      {{ togglingUserId() === user.userId ? 'Saving…' : user.isActive ? 'Disable' : 'Enable' }}
+                    </button>
+                    @if (user.isLocked) {
+                      <button
+                        type="button"
+                        class="admin-toggle admin-toggle--unlock"
+                        [disabled]="unlockingUserId() === user.userId"
+                        (click)="unlockAccount(user)"
+                      >
+                        {{ unlockingUserId() === user.userId ? 'Unlocking…' : 'Unlock' }}
+                      </button>
+                    }
+                  </div>
                 </td>
               </tr>
             }

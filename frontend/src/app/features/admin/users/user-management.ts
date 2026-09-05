@@ -28,6 +28,9 @@ export class UserManagement implements OnInit {
   /** userId currently mid-toggle - disables that row's button so a double click can't fire two PATCHes. */
   protected readonly togglingUserId = signal<number | null>(null);
 
+  /** userId currently mid-unlock - same guard as togglingUserId, for the Unlock button. */
+  protected readonly unlockingUserId = signal<number | null>(null);
+
   ngOnInit(): void {
     this.loadPage(0);
   }
@@ -86,6 +89,29 @@ export class UserManagement implements OnInit {
       },
       error: (error: unknown) => {
         this.togglingUserId.set(null);
+        this.errorMessage.set(this.resolveErrorMessage(error));
+      },
+    });
+  }
+
+  /** Resets is_locked/failed_attempts on success (sp_unlock_user_account). */
+  protected unlockAccount(user: UserResponse): void {
+    if (this.unlockingUserId() !== null) {
+      return;
+    }
+    this.unlockingUserId.set(user.userId);
+
+    this.userService.unlockUser(user.userId).subscribe({
+      next: () => {
+        this.unlockingUserId.set(null);
+        this.users.update((list) =>
+          list.map((u) =>
+            u.userId === user.userId ? { ...u, isLocked: false, failedAttempts: 0 } : u,
+          ),
+        );
+      },
+      error: (error: unknown) => {
+        this.unlockingUserId.set(null);
         this.errorMessage.set(this.resolveErrorMessage(error));
       },
     });

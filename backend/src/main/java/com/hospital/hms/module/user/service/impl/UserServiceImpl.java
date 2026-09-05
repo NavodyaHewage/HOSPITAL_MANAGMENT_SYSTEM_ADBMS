@@ -128,6 +128,12 @@ public class UserServiceImpl implements UserService {
         return procedureRepository.hasPermission(userId, permissionName);
     }
 
+    /** No @Transactional - sp_unlock_user_account owns its transaction. */
+    @Override
+    public void unlockAccount(Integer userId, Integer actorUserId) {
+        procedureRepository.unlockAccount(userId, actorUserId);
+    }
+
     private UserResponse toResponse(User user) {
         return new UserResponse(
                 user.getUserId(),
@@ -139,6 +145,8 @@ public class UserServiceImpl implements UserService {
                 user.getLastLogin(),
                 user.getLastLogout(),
                 user.getCreatedAt(),
+                user.getIsLocked(),
+                user.getFailedAttempts(),
                 userRepository.findRoleNames(user.getUserId()),
                 userRepository.findPermissionNames(user.getUserId()));
     }

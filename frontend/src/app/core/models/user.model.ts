@@ -25,6 +25,10 @@ export interface UserResponse {
   lastLogin: string | null;
   lastLogout: string | null;
   createdAt: string | null;
+  /** True once sp_handle_failed_login has locked this account. */
+  isLocked: boolean;
+  /** Consecutive wrong passwords since the last success or admin unlock. */
+  failedAttempts: number;
   roles: string[];
   permissions: string[];
 }
